@@ -14,6 +14,20 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static frontend files
 app.use(express.static(path.join(__dirname)));
 
+// المسارات الصريحة لصفحات الويب الرئيسية
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+app.get('/restaurant.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'restaurant.html'));
+});
+app.get('/driver.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'driver.html'));
+});
+app.get('/onboarding.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'onboarding.html'));
+});
+
 // ==========================================================================
 // MySQL REST API Endpoints
 // ==========================================================================
