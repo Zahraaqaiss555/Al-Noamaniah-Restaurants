@@ -264,9 +264,16 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// تشغيل الخادم
-db.initDB().then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`🚀 خادم مطاعم النعمانية (MySQL API) يعمل الآن على: http://localhost:${PORT}`);
+// تشغيل الخادم وتصديره لـ Vercel
+if (require.main === module) {
+    db.initDB().then(() => {
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 خادم مطاعم النعمانية (MySQL API) يعمل الآن على: http://localhost:${PORT}`);
+        });
     });
-});
+} else {
+    db.initDB();
+}
+
+module.exports = app;
+
