@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>لوحة إدارة المطعم | مطاعم النعمانية</title>
+    
+    <!-- Google Fonts: Tajawal -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .restaurant-dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-cream);
+            height: 100%;
+        }
+        
+        /* Tab Navigation */
+        .dashboard-tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+            border-bottom: 2px solid var(--border-light);
+            background: white;
+            padding: 8px 12px;
+        }
+        .dashboard-tabs::-webkit-scrollbar {
+            display: none;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 16px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tab-btn.active {
+            color: var(--terracotta);
+            border-bottom-color: var(--terracotta);
+        }
+        
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            animation: fadeIn 0.25s ease-out;
+        }
+        .tab-content.active {
+            display: flex;
+        }
+        
+        /* Order Cards */
+        .orders-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .order-card {
+            background: var(--card-white);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            box-shadow: var(--shadow-card);
+            border-right: 4px solid var(--terracotta);
+            transition: all 0.25s ease;
+        }
+        .order-card.status-preparing { border-right-color: var(--color-warning); }
+        .order-card.status-ready { border-right-color: var(--color-success); }
+        
+        /* Menu builder UI */
+        .menu-items-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .menu-item-card {
+            background: white;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-light);
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+        }
+        .menu-item-image {
+            width: 100%;
+            height: 95px;
+            object-fit: cover;
+        }
+        .menu-item-info {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+        .menu-item-info h4 {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin: 0;
+        }
+        .menu-item-info span {
+            font-size: 0.8rem;
+            color: var(--terracotta);
+            font-weight: 900;
+        }
+        .menu-item-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-light);
+            padding: 8px 10px;
+            background: #FAF8F6;
+        }
+        
+        /* Preloaded Images Selector Grid */
+        .image-selector-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 6px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 4px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+        }
+        .image-option {
+            border: 2px solid transparent;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+            height: 60px;
+            transition: all 0.2s ease;
+        }
+        .image-option img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .image-option.selected {
+            border-color: var(--terracotta);
+            transform: scale(0.96);
+        }
+        .image-option span {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            font-size: 0.65rem;
+            text-align: center;
+            padding: 2px 0;
+        }
+        
+        /* Dialog Modal Styles */
+        .custom-dialog-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        .custom-dialog-backdrop.active {
+            display: flex;
+        }
+        .dialog-card {
+            background: var(--card-white);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-elevated);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            animation: fadeInModal 0.25s ease;
+        }
+        
+        /* Operating hours settings card */
+        .settings-card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        
+        /* Reviews / Feedback Item */
+        .review-card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 12px;
+            border: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: var(--shadow-card);
+        }
+        
+        /* Form inputs styling */
+        .form-group label {
+            display: block;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-light);
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--terracotta);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="main-header" style="display:flex;">
+            <div class="header-inner">
+                <button class="btn-secondary-action" style="padding: 6px 12px; font-size: 0.75rem; border-radius: var(--radius-pill); background: #FAF8F6; color: var(--terracotta); border: 1px solid var(--border-light); font-weight: 800; display: flex; align-items: center; gap: 4px;" onclick="sessionStorage.setItem('restaurant_viewing_as_customer', 'true'); window.location.href='index.html?mode=customer'">
+                    <i class="fas fa-eye"></i> تصفح كزبون
+                </button>
+                <div class="header-title-logo">
+                    <i class="fas fa-store logo-icon"></i>
+                    <span id="headerRestTitle">إدارة المطعم</span>
+                </div>
+                <button class="header-icon-btn" onclick="authManager.signOut().then(()=>window.location.href='index.html')"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs Bar -->
+        <div class="dashboard-tabs">
+            <button class="tab-btn active" id="btn-tab-orders" onclick="switchDashboardTab('orders')"><i class="fas fa-list-check"></i> الطلبات</button>
+            <button class="tab-btn" id="btn-tab-menu" onclick="switchDashboardTab('menu')"><i class="fas fa-burger"></i> المنيو</button>
+            <button class="tab-btn" id="btn-tab-offers" onclick="switchDashboardTab('offers')"><i class="fas fa-tags"></i> العروض</button>
+            <button class="tab-btn" id="btn-tab-settings" onclick="switchDashboardTab('settings')"><i class="fas fa-clock"></i> الدوام</button>
+            <button class="tab-btn" id="btn-tab-history" onclick="switchDashboardTab('history')"><i class="fas fa-history"></i> الأرشيف والتقييم</button>
+        </div>
+
+        <main class="app-scroll-content" style="padding:0;">
+            <div class="restaurant-dashboard">
+                
+                <!-- معلومات المطعم وساعات العمل السريعة -->
+                <div class="profile-card-header" style="padding: 14px; background: white; border-radius: var(--radius-md); box-shadow: var(--shadow-card); margin-bottom: 4px;">
+                    <h3 id="dashboardRestName" style="color: var(--text-dark);">جاري التحميل...</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 8px;">
+                        <div style="display: flex; gap: 8px; align-items: center; font-size: 0.85rem;">
+                            <span id="dashboardRestType" class="profile-provider-badge" style="background: var(--terracotta-light); color: var(--terracotta);">--</span>
+                            <span style="color: var(--color-warning); font-weight: bold;"><i class="fas fa-star"></i> <span id="dashboardRestRating">5.0</span></span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <input type="checkbox" id="toggleActiveStatus" style="width: auto; cursor:pointer;" onchange="toggleRestaurantStatus(this.checked)">
+                            <span id="activeStatusLabel" style="font-weight: 800; font-size: 0.8rem; color: var(--text-muted);">مغلق</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. TAB CONTENT: ORDERS -->
+                <div id="tab-orders" class="tab-content active">
+                    <div class="dashboard-header" style="margin-bottom: 0;">
+                        <h3 style="font-size: 0.95rem; font-weight: 800;">الطلبـات المباشرة <span id="ordersCount" style="color:var(--terracotta);">(0)</span></h3>
+                    </div>
+                    <div id="ordersContainer" class="orders-grid">
+                        <p style="text-align: center; color: var(--text-muted); padding: 20px 0;">جاري تحميل الطلبات المباشرة...</p>
+                    </div>
+                </div>
+
+                <!-- 2. TAB CONTENT: MENU -->
+                <div id="tab-menu" class="tab-content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <h3 style="font-size: 0.95rem; font-weight: 800;">إدارة منيو الأطباق</h3>
+                        <button class="btn-primary-action" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--radius-pill);" onclick="openAddDishDialog()"><i class="fas fa-plus"></i> إضافة طبق</button>
+                    </div>
+                    
+                    <div class="menu-items-grid" id="menuGridContainer">
+                        <p style="text-align: center; color: var(--text-muted); grid-column: 1/-1; padding: 20px 0;">جاري تحميل المنيو...</p>
+                    </div>
+                </div>
+
+                <!-- 3. TAB CONTENT: OFFERS -->
+                <div id="tab-offers" class="tab-content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <h3 style="font-size: 0.95rem; font-weight: 800;">العروض والخصومات النشطة</h3>
+                        <button class="btn-primary-action" style="padding: 8px 14px; font-size: 0.85rem; border-radius: var(--radius-pill);" onclick="openAddOfferDialog()"><i class="fas fa-plus"></i> إضافة عرض</button>
+                    </div>
+                    
+                    <div class="orders-grid" id="offersContainer">
+                        <!-- Populated via JS -->
+                        <p style="text-align: center; color: var(--text-muted); padding: 20px 0;">لا توجد عروض ترويجية نشطة حالياً.</p>
+                    </div>
+                </div>
+
+                <!-- 4. TAB CONTENT: SETTINGS & HOURS -->
+                <div id="tab-settings" class="tab-content">
+                    <h3 style="font-size: 0.95rem; font-weight: 800;">أوقات تقديم الخدمة (ساعات الدوام)</h3>
+                    
+                    <div class="settings-card">
+                        <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                            <label style="margin-bottom:0;">تفعيل أوقات الدوام التلقائية:</label>
+                            <input type="checkbox" id="enableAutoHours" style="width: auto; cursor:pointer;" onchange="saveAutoHoursToggle(this.checked)">
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: -8px;">(عند التفعيل، سيتحول المطعم تلقائياً إلى مغلق خارج الساعات المحددة أدناه)</p>
+                        
+                        <hr style="border:none; border-top: 1px solid var(--border-light);">
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label>من الساعة (وقت الفتح):</label>
+                                <input type="time" id="openTimeInput" value="12:00">
+                            </div>
+                            <div class="form-group">
+                                <label>إلى الساعة (وقت الإغلاق):</label>
+                                <input type="time" id="closeTimeInput" value="23:30">
+                            </div>
+                        </div>
+                        
+                        <button class="btn-primary-action btn-block" onclick="saveWorkingHours()"><i class="fas fa-save"></i> حفظ مواعيد الدوام</button>
+                    </div>
+                </div>
+
+                <!-- 5. TAB CONTENT: ARCHIVE & REVIEWS -->
+                <div id="tab-history" class="tab-content">
+                    <!-- Analytics chart -->
+                    <div style="background: white; padding: 14px; border-radius: var(--radius-md); box-shadow: var(--shadow-card);">
+                        <h3 style="margin-bottom: 8px; color: var(--text-dark); font-size: 0.9rem; font-weight: 800;">إحصائيات المبيعات الأسبوعية</h3>
+                        <canvas id="salesChart" style="max-height: 140px; width: 100%;"></canvas>
+                    </div>
+
+                    <!-- Reviews -->
+                    <h3 style="font-size: 0.95rem; font-weight: 800; margin-top: 10px;">تقييمات وآراء العملاء</h3>
+                    <div class="orders-grid" id="reviewsContainer">
+                        <div class="review-card">
+                            <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+                                <strong>أبو يوسف</strong>
+                                <span style="color:var(--color-warning);"><i class="fas fa-star"></i> <i class="fas fa-star"></i> <i class="fas fa-star"></i> <i class="fas fa-star"></i> <i class="fas fa-star"></i></span>
+                            </div>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">الدولمة كلش طيبة والتوصيل سريع وحار. عاشت إيديكم!</p>
+                        </div>
+                        <div class="review-card">
+                            <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+                                <strong>علي الساعدي</strong>
+                                <span style="color:var(--color-warning);"><i class="fas fa-star"></i> <i class="fas fa-star"></i> <i class="fas fa-star"></i> <i class="fas fa-star"></i> <i class="far fa-star"></i></span>
+                            </div>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">الأكل طعمه ممتاز، بس تمنيت يوصل أسرع شوية. شكراً جزيلاً.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- DIALOG: ADD MENU ITEM -->
+    <div class="custom-dialog-backdrop" id="addDishDialog">
+        <div class="dialog-card">
+            <h3 style="font-weight: 800; text-align: center; color: var(--text-dark); margin: 0;">إضافة طبق جديد للمنيو</h3>
+            
+            <div class="form-group">
+                <label>اسم الوجبة / الطبق *</label>
+                <input type="text" id="newDishName" placeholder="مثال: نفر كباب دجاج" required>
+            </div>
+            
+            <div class="form-group">
+                <label>السعر بالدينار العراقي *</label>
+                <input type="number" id="newDishPrice" placeholder="مثال: 8000" required>
+            </div>
+            
+            <div class="form-group">
+                <label>الوصف والمكونات</label>
+                <textarea id="newDishDesc" placeholder="مثال: قطعتين كباب، تمن زعفران، طماطة وبصل مشوي..." rows="2"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>اختر صورة معبرة جاهزة (عالية الجودة):</label>
+                <div class="image-selector-grid" id="imageSelectorGrid">
+                    <!-- Loaded dynamically in JS -->
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn-secondary-action" style="flex:1;" onclick="closeAddDishDialog()">إلغاء</button>
+                <button class="btn-primary-action" style="flex:1.5;" onclick="saveNewDishItem()">إضافة للقمشة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIALOG: ADD PROMO OFFER -->
+    <div class="custom-dialog-backdrop" id="addOfferDialog">
+        <div class="dialog-card">
+            <h3 style="font-weight: 800; text-align: center; color: var(--text-dark); margin: 0;">إنشاء عرض ترويجي جديد</h3>
+            
+            <div class="form-group">
+                <label>عنوان العرض الرئيسي *</label>
+                <input type="text" id="newOfferTitle" placeholder="مثال: خصم 20% على المشاوي العائلية" required>
+            </div>
+            
+            <div class="form-group">
+                <label>تفاصيل ووصف العرض</label>
+                <input type="text" id="newOfferDesc" placeholder="مثال: يسري العرض أيام الخميس والجمعة فقط...">
+            </div>
+            
+            <div class="form-group">
+                <label>نوع الخصم / العرض:</label>
+                <select id="newOfferType" onchange="adjustOfferTypeFields(this.value)">
+                    <option value="discount">نسبة خصم مئوية (%)</option>
+                    <option value="free_delivery">توصيل مجاني للطلب</option>
+                    <option value="buy1get1">اشتري 1 واحصل على 1 مجاناً</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="offerDiscountValueGroup">
+                <label>نسبة الخصم (من 1 إلى 99)% *</label>
+                <input type="number" id="newOfferValue" placeholder="مثال: 15" min="1" max="99">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn-secondary-action" style="flex:1;" onclick="closeAddOfferDialog()">إلغاء</button>
+                <button class="btn-primary-action" style="flex:1.5;" onclick="saveNewOfferItem()">تفعيل العرض</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+    
+    <script src="js/firebase-config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/restaurant.js"></script>
+</body>
+</html>

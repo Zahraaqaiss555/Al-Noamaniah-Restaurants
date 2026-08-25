@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="تطبيق مطاعم النعمانية للتوصيل السريع للمأكولات، المندي، المشاوي، البيتزا، والبرجر في قضاء النعمانية.">
+    <title>تطبيق مطاعم النعمانية | Al-Noamaniah</title>
+
+    <!-- Google Fonts: Tajawal -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome Pro/Solid Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Terracotta Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        /* Splash Screen يختفي تلقائياً بعد 0.9 ثانية بدون JavaScript */
+        @keyframes splashFadeOut {
+            0%   { opacity: 1; visibility: visible; }
+            80%  { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; pointer-events: none; }
+        }
+        @keyframes authFadeIn {
+            0%   { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        #splashScreenView {
+            animation: splashFadeOut 0.4s ease-out 0.7s forwards;
+        }
+        #authScreenView {
+            animation: authFadeIn 0.4s ease-in 0.9s both;
+        }
+    </style>
+
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- CSS فقط في الـ head - بدون JS -->
+</head>
+<body>
+
+    <!-- ضامن احتياطي: إخفاء Splash Screen بعد 800ms مهما حدث -->
+    <script>
+        window.__splashHidden = false;
+        function __forceSplashHide() {
+            if (window.__splashHidden) return;
+            window.__splashHidden = true;
+            var splash = document.getElementById('splashScreenView');
+            var auth = document.getElementById('authScreenView');
+            if (splash) splash.style.display = 'none';
+            // تحقق من مستخدم محفوظ مسبقاً
+            var saved = null;
+            try { saved = localStorage.getItem('al_noamaniah_user'); } catch(e) {}
+            if (auth && !saved) {
+                auth.style.display = 'flex';
+            } else if (saved) {
+                // سيتولى app.js تحميل الواجهة - لا نفعل شيئاً
+            }
+        }
+        // يُشغَّل بعد 800ms كحد أقصى
+        setTimeout(__forceSplashHide, 800);
+    </script>
+
+    <!-- الحاوية المركزية للتطبيق (Mobile Phone Frame) -->
+    <div class="app-container">
+
+        <!-- ==========================================
+             الهيدر العلوي وشريط التطبيق (Main Header)
+             ========================================== -->
+        <header class="main-header" id="mainAppHeader" style="display:none;">
+            <div class="header-inner">
+                <!-- زر الملف الشخصي للمستخدم -->
+                <button class="header-icon-btn" id="userProfileBtn" onclick="openUserProfileModal()" title="الملف الشخصي والحساب">
+                    <img id="headerUserAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Avatar" class="header-avatar-img" style="display:none;">
+                    <i id="headerDefaultUserIcon" class="far fa-user-circle"></i>
+                </button>
+
+                <!-- زر لوحة تحكم المطعم في الهيدر مباشرة -->
+                <button class="header-icon-btn" id="btnHeaderRestaurantDashboard" style="display:none; color: var(--color-success); margin-right: 8px;" onclick="sessionStorage.removeItem('restaurant_viewing_as_customer'); window.location.href='restaurant.html'" title="لوحة تحكم المطعم">
+                    <i class="fas fa-store"></i>
+                </button>
+
+                <!-- اللوجو والعنوان -->
+                <div class="header-title-logo" onclick="switchView('customer-home')">
+                    <i class="fas fa-utensils logo-icon"></i>
+                    <span>مطاعم النعمانية</span>
+                </div>
+
+                <!-- زر سلة الشراء -->
+                <button class="header-icon-btn" id="cartHeaderTrigger" title="سلة الطلبات">
+                    <i class="fas fa-shopping-bag"></i>
+                    <span class="badge-dot" id="cartBadge">0</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- منطقة المحتوى القابلة للتمرير (Scrollable App Body) -->
+        <main class="app-scroll-content">
+
+            <!-- ==========================================
+                 0.1. شاشة البدء المودرن (Modern Splash Screen)
+                 ========================================== -->
+            <div id="splashScreenView" class="splash-screen-container">
+                <div class="splash-logo-circle">
+                    <i class="fas fa-utensils"></i>
+                </div>
+
+                <h1 class="splash-title">مطاعم النعمانية</h1>
+                <div class="splash-tagline">
+                    منصة الطلب والتوصيل السريع في قضاء النعمانية
+                </div>
+
+                <div class="splash-loading-box">
+                    <i class="fas fa-circle-notch fa-spin"></i>
+                    <span>جاري الاتصال بخدمات النظام...</span>
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 0.2. نافذة وشاشة تسجيل الدخول المتكاملة (Firebase Auth Screen)
+                 ========================================== -->
+            <div id="authScreenView" class="auth-screen-container" style="display:flex; opacity:0;">
+                <div class="auth-brand-header">
+                    <div class="auth-logo-circle">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <h1 class="auth-title">مطاعم النعمانية</h1>
+                </div>
+
+                <!-- صندوق إشعارات الأخطاء والنجاح في المصادقة -->
+                <div id="authAlertBox" class="auth-alert-box" style="display:none;">
+                    <i class="fas fa-exclamation-circle" id="authAlertIcon"></i>
+                    <span id="authAlertMessage"></span>
+                </div>
+
+                <!-- زر الدخول بحساب Google الرسمي -->
+                <button class="btn-google-login" id="btnGoogleAuth" onclick="handleGoogleSignIn()">
+                    <span>الدخول بـ Google</span>
+                </button>
+
+                <!-- زر الدخول كزائر عبر Firebase Anonymous -->
+                <button class="btn-guest-login" id="btnGuestAuth" onclick="handleGuestSignIn()">
+                    <span>دخول كزائر</span>
+                </button>
+
+                <p class="auth-terms-note">المتابعة تعني موافقتك على الشروط والسياسات.</p>
+            </div>
+
+            <!-- ==========================================
+                 1. تطبيق العميل: الشاشة الرئيسية
+                 ========================================== -->
+            <div id="customerHomeView" class="view-panel" style="display:none;">
+                <div class="search-box-pill">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="ابحث عن مطاعم، أطباق، أو أصناف...">
+                </div>
+
+                <div class="section-title-row">
+                    <h3>التصنيفات</h3>
+                    <a href="javascript:void(0)" class="section-link" onclick="resetCategoryFilter()">عرض الكل</a>
+                </div>
+                <div class="categories-scroll" id="categoriesContainer"></div>
+
+                <div class="section-title-row">
+                    <h3>المطاعم المميزة</h3>
+                </div>
+                <div class="restaurants-list" id="restaurantsListContainer"></div>
+            </div>
+
+            <!-- ==========================================
+                 2. صفحة مأكولات ومنيو المطعم
+                 ========================================== -->
+            <div id="restaurantMenuView" class="view-panel" style="display:none;">
+                <div class="back-btn-container">
+                    <button class="btn-back-action" onclick="switchView('customer-home')">
+                        <i class="fas fa-arrow-right"></i> العودة لقائمة المطاعم
+                    </button>
+                </div>
+                
+                <div class="restaurant-hero-card">
+                    <div class="rest-card-image-box hero-cover">
+                        <img id="menuRestCover" src="" alt="غلاف المطعم">
+                    </div>
+                    <div class="rest-card-info">
+                        <h2 id="menuRestName">اسم المطعم</h2>
+                        <p id="menuRestDesc">وصف المطعم</p>
+                    </div>
+                </div>
+
+                <div class="section-title-row">
+                    <h3>قائمة المأكولات والأطباق</h3>
+                </div>
+                <div id="menuDishesContainer" class="dishes-list"></div>
+            </div>
+
+            <!-- ==========================================
+                 3. شاشة تتبع الطلب (Order Tracking)
+                 ========================================== -->
+            <div id="orderTrackingView" class="view-panel" style="display:none;">
+                <h2 class="page-title-center">تتبع الطلب الحالي</h2>
+                <div class="order-number-subtitle" id="trackingOrderIdText">رقم الطلب: #ORD-2023-8942</div>
+
+                <div class="est-time-bubble">
+                    <span>الوقت المتوقع للوصول</span>
+                    <h2 id="trackingEstTimeText">25 - 35 دقيقة</h2>
+                </div>
+
+                <div class="tracking-steps-card">
+                    <div class="timeline-circles-row">
+                        <div class="timeline-line-active" id="timelineProgressLine"></div>
+
+                        <div class="step-circle-box done" id="stepReceived">
+                            <div class="circle-icon"><i class="fas fa-check"></i></div>
+                            <span class="step-name">تم الاستلام</span>
+                        </div>
+
+                        <div class="step-circle-box active" id="stepPreparing">
+                            <div class="circle-icon"><i class="fas fa-utensils"></i></div>
+                            <span class="step-name">قيد التحضير</span>
+                        </div>
+
+                        <div class="step-circle-box" id="stepOnTheWay">
+                            <div class="circle-icon"><i class="fas fa-motorcycle"></i></div>
+                            <span class="step-name">في الطريق</span>
+                        </div>
+
+                        <div class="step-circle-box" id="stepDelivered">
+                            <div class="circle-icon"><i class="fas fa-home"></i></div>
+                            <span class="step-name">تم التسليم</span>
+                        </div>
+                    </div>
+
+                    <div class="tracking-alert-box">
+                        <i class="fas fa-info-circle"></i>
+                        <span id="trackingAlertText">طلبك يتم تجهيزه الآن بعناية. سنقوم بإعلامك فور خروجه للتوصيل.</span>
+                    </div>
+                </div>
+
+                <div class="driver-assign-card">
+                    <div class="driver-text-info">
+                        <div class="driver-avatar-circle">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <div>
+                            <h4 id="driverStatusNameText">جاري تعيين مندوب</h4>
+                            <span>سيتم التعيين فور جاهزية الطلب</span>
+                        </div>
+                    </div>
+                    <button class="driver-call-btn" onclick="alert('اتصال بالسائق: 07800001122')" title="اتصال">
+                        <i class="fas fa-phone-alt"></i>
+                    </button>
+                </div>
+
+                <div class="receipt-details-card">
+                    <h3 class="receipt-title">تفاصيل الفاتورة</h3>
+                    <div id="receiptItemsContainer"></div>
+
+                    <div class="receipt-divider"></div>
+
+                    <div class="receipt-calc-row">
+                        <span>المجموع الفرعي</span>
+                        <span id="receiptSubtotalText">0 د.ع</span>
+                    </div>
+                    <div class="receipt-calc-row">
+                        <span>رسوم التوصيل</span>
+                        <span id="receiptDeliveryText">2,000 د.ع</span>
+                    </div>
+
+                    <div class="receipt-total-row">
+                        <span>الإجمالي الكلي</span>
+                        <span id="receiptTotalText">0 د.ع</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 4. لوحة المطعم (Restaurant Dashboard)
+                 ========================================== -->
+            <div id="restaurantPanelView" class="view-panel" style="display:none;">
+                <div class="admin-stats-row">
+                    <div class="stat-pill-card primary-filled">
+                        <div class="stat-card-header">
+                            <span>طلبات اليوم</span>
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-card-number" id="restTodayOrdersCount">0</div>
+                    </div>
+
+                    <div class="stat-pill-card white-filled">
+                        <div class="stat-card-header">
+                            <span>إجمالي المبيعات</span>
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stat-card-number" id="restTotalSalesSum">0 د.ع</div>
+                    </div>
+                </div>
+
+                <div class="orders-section-title">
+                    <span>طلبات جديدة واردة</span>
+                    <span class="orders-count-badge" id="incomingOrdersBadgeCount">0 جديدة</span>
+                </div>
+                <div id="incomingOrdersContainer"></div>
+
+                <div class="orders-section-title" style="margin-top:1.5rem;">
+                    <span>قيد التجهيز والاستلام</span>
+                </div>
+                <div id="preparingOrdersContainer"></div>
+            </div>
+
+            <!-- ==========================================
+                 5. تطبيق السائق (Driver Module)
+                 ========================================== -->
+            <div id="driverPanelView" class="view-panel" style="display:none;">
+                <h2 class="page-title-center">لوحة كابتن التوصيل</h2>
+                <p class="page-subtitle-center">قائمة الطلبات الجاهزة للاستلام في النعمانية</p>
+                <div id="driverOrdersContainer"></div>
+            </div>
+
+            <!-- ==========================================
+                 6. لوحة تحكم الأدمن (Admin Dashboard)
+                 ========================================== -->
+            <div id="adminDashboardView" class="view-panel" style="display:none;">
+                <h2 class="page-title-center">لوحة الإدارة والمراقبة</h2>
+                <div class="admin-stats-row">
+                    <div class="stat-pill-card white-filled">
+                        <div class="stat-card-header"><span>المطاعم المشتركة</span></div>
+                        <div class="stat-card-number" id="adminRestCount">4</div>
+                    </div>
+                    <div class="stat-pill-card primary-filled">
+                        <div class="stat-card-header"><span>إجمالي مبيعات النظام</span></div>
+                        <div class="stat-card-number" id="adminSystemSales">0 د.ع</div>
+                    </div>
+                </div>
+
+                <h3 class="table-section-title">مراقبة الطلبات المباشرة في النعمانية</h3>
+                <div class="admin-table-wrapper">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>الطلب</th>
+                                <th>الزبون</th>
+                                <th>المطعم</th>
+                                <th>المبلغ</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminLiveOrdersTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- ==========================================
+             7. شريط التنقل السفلي (Bottom Navigation)
+             ========================================== -->
+        <nav class="bottom-nav-bar" id="mainBottomNav" style="display:none;">
+            <button class="nav-item-btn active" id="navHomeBtn">
+                <i class="fas fa-home"></i>
+                <span>الرئيسية</span>
+            </button>
+            <button class="nav-item-btn" id="navSearchBtn">
+                <i class="fas fa-search"></i>
+                <span>بحث</span>
+            </button>
+            <button class="nav-item-btn" id="navOrdersBtn">
+                <i class="fas fa-clipboard-list"></i>
+                <span>الطلبات</span>
+            </button>
+            <button class="nav-item-btn" id="navModeToggleBtn">
+                <i class="fas fa-sliders-h"></i>
+                <span>لوحة النظام</span>
+            </button>
+        </nav>
+
+        <!-- ==========================================
+             8. شيت سلة التسوق (Cart Drawer)
+             ========================================== -->
+        <div class="modal-backdrop" id="cartOverlay">
+            <div class="modal-bottom-sheet">
+                <div class="sheet-header">
+                    <h3>سلة الطلبات</h3>
+                    <button class="btn-close-sheet" id="btnCloseCartDrawer"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="cartItemsContainer" class="sheet-scroll-body"></div>
+                
+                <div class="receipt-calc-row"><span>المجموع الفرعي:</span><span id="cartSubtotalText">0 د.ع</span></div>
+                <div class="receipt-calc-row"><span>رسوم التوصيل:</span><span id="cartDeliveryText">2,000 د.ع</span></div>
+                <div class="receipt-total-row"><span>الإجمالي:</span><span id="cartTotalText">0 د.ع</span></div>
+
+                <button class="btn-primary-action btn-block" id="btnOpenCheckout" disabled>
+                    متابعة لتأكيد العنوان والطلب
+                </button>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             9. نافذة تأكيد إدخال العنوان (Checkout Modal)
+             ========================================== -->
+        <div class="modal-backdrop" id="checkoutModal">
+            <div class="modal-bottom-sheet">
+                <div class="sheet-header">
+                    <h3>تفاصيل توصيل الطلب</h3>
+                    <button class="btn-close-sheet" id="btnCloseCheckout"><i class="fas fa-times"></i></button>
+                </div>
+                <form id="checkoutForm">
+                    <div class="form-group">
+                        <label>اسم الزبون الكامل *</label>
+                        <input type="text" id="checkoutCustName" value="" required placeholder="أدخل اسمك الكريم">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الهاتف للتواصل *</label>
+                        <input type="tel" id="checkoutCustPhone" value="07801122334" required placeholder="078xxxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label>الحي والعنوان التفصيلي بالنعمانية *</label>
+                        <input type="text" id="checkoutCustAddress" value="حي المعلمين - قرب مدرسة الفرات" required placeholder="الحي وأقرب نقطة دالة">
+                    </div>
+                    <div class="form-group">
+                        <label>حدد موقعك على الخريطة لتسريع التوصيل *</label>
+                        <div id="checkoutMap" style="height: 200px; border-radius: var(--radius-md); margin-bottom: 10px; border: 1px solid var(--border-light); z-index: 1;"></div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted);">انقر على الخريطة لتحديد موقعك الدقيق</p>
+                        <input type="hidden" id="checkoutLat">
+                        <input type="hidden" id="checkoutLng">
+                    </div>
+                    <div class="form-group">
+                        <label>طريقة الدفع المعتمدة</label>
+                        <div class="payment-method-pill">
+                            <i class="fas fa-money-bill-wave"></i> الدفع نقدياً عند الاستلام (Cash on Delivery)
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary-action btn-block">
+                        تأكيد وإرسال الطلب
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             10. نافذة الملف الشخصي للمستخدم (User Profile Modal)
+             ========================================== -->
+        <div class="modal-backdrop" id="userProfileModal">
+            <div class="modal-bottom-sheet">
+                <div class="sheet-header">
+                    <h3>الملف الشخصي</h3>
+                    <button class="btn-close-sheet" onclick="closeUserProfileModal()"><i class="fas fa-times"></i></button>
+                </div>
+                
+                <div class="profile-card-header">
+                    <div class="profile-avatar-container">
+                        <img id="profileModalAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80" alt="User">
+                    </div>
+                    <h3 id="profileModalName" class="profile-name">اسم المستخدم</h3>
+                    <p id="profileModalEmail" class="profile-email">user@email.com</p>
+                    <span id="profileModalProviderBadge" class="profile-provider-badge">حساب Google موثق</span>
+                </div>
+
+                <div class="profile-details-list" style="display: none;">
+                    <div class="profile-detail-row">
+                        <span>معرف المستخدم (Firebase UID)</span>
+                        <strong id="profileModalUid">uid...</strong>
+                    </div>
+                    <div class="profile-detail-row">
+                        <span>المنطقة الافتراضية</span>
+                        <strong>قضاء النعمانية</strong>
+                    </div>
+                    <div class="profile-detail-row">
+                        <span>عدد الطلبات المسجلة</span>
+                        <strong id="profileModalOrderCount">0 طلبات</strong>
+                    </div>
+                </div>
+
+                <button class="btn-primary-action btn-block" id="btnRegisterAsRestaurant" style="margin-bottom: 12px;" onclick="window.location.href='onboarding.html'">
+                    <i class="fas fa-store"></i> تسجيل الحساب كـ مطعم / مطبخ
+                </button>
+
+                <button class="btn-primary-action btn-block" id="btnGoToRestaurantDashboard" style="margin-bottom: 12px; display: none; background: var(--color-success);" onclick="sessionStorage.removeItem('restaurant_viewing_as_customer'); window.location.href='restaurant.html'">
+                    <i class="fas fa-store-slash"></i> الانتقال إلى لوحة تحكم المطعم
+                </button>
+
+                <button class="btn-danger-outline btn-block" onclick="handleSignOut()">
+                    <i class="fas fa-sign-out-alt"></i> تسجيل الخروج من الحساب
+                </button>
+            </div>
+        </div>
+
+        <!-- Floating button for restaurant owner view swap -->
+        <button id="floatingRestaurantDashboardBtn" class="floating-dashboard-btn" style="display: none;" onclick="sessionStorage.removeItem('restaurant_viewing_as_customer'); window.location.href='restaurant.html'">
+            <i class="fas fa-store"></i> لوحة التحكم 🏪
+        </button>
+
+        <!-- الإشعار العائم الموحد للتطبيق (Toast) -->
+        <div id="toastNotification" class="toast-notification"></div>
+
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Firebase SDK يُحمَّل أولاً بالترتيب الصحيح -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+    <!-- تم تفعيل Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+    
+    <!-- ثم ملفات التطبيق -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

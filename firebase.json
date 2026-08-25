@@ -1,0 +1,20 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "auth": {
+    "providers": {
+      "anonymous": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "مطاعم النعمانية",
+        "supportEmail": "zahraa@gmail.com"
+      }
+    },
+    "authorizedDomains": [
+      "localhost",
+      "city-resturant.firebaseapp.com",
+      "city-resturant.web.app"
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User Profiles
+    match /users/{userId} {
+      // Users can read and write their own profile
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      // 1. Customer can read their own orders
+      allow read: if request.auth != null && resource.data.customerId == request.auth.uid;
+      // 2. Customer can create new order
+      allow create: if request.auth != null && request.resource.data.customerId == request.auth.uid;
+      
+      // 3. Restaurant can read and update orders directed to them
+      allow read, update: if request.auth != null && resource.data.restaurantId != null 
+                          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'restaurant'
+                          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.restaurantId == resource.data.restaurantId;
+      
+      // 4. Drivers can read 'ready' orders and read/update their accepted orders
+      allow read: if request.auth != null 
+                  && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver'
+                  && (resource.data.status == 'ready' || resource.data.driverId == request.auth.uid);
+      allow update: if request.auth != null 
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver'
+                    && (resource.data.driverId == request.auth.uid || request.resource.data.driverId == request.auth.uid);
+    }
+
+    // Restaurants Collection
+    match /restaurants/{restaurantId} {
+      // Anyone can read restaurant details
+      allow read: if true;
+      // Only the authenticated owner can create/update the restaurant details
+      allow create, update: if request.auth != null && (request.resource.data.ownerUid == request.auth.uid || resource.data.ownerUid == request.auth.uid);
+    }
+  }
+}

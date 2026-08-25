@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تهيئة حساب المطعم | مطاعم النعمانية</title>
+    
+    <!-- Google Fonts: Tajawal -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .onboarding-container {
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: var(--bg-cream);
+            height: 100%;
+            overflow-y: auto;
+        }
+        .step-panel {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .step-panel.active {
+            display: flex;
+        }
+        .card-choice {
+            background: var(--card-white);
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .card-choice:hover, .card-choice.selected {
+            border-color: var(--terracotta);
+            background: var(--terracotta-light);
+            transform: translateY(-2px);
+        }
+        .card-choice i {
+            font-size: 2.5rem;
+            color: var(--terracotta);
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: var(--text-dark);
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-light);
+            font-family: inherit;
+            background: var(--card-white);
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--terracotta);
+        }
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .category-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-light);
+            cursor: pointer;
+        }
+        .category-checkbox input {
+            width: auto;
+        }
+        #onboardingMap {
+            height: 250px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-light);
+            margin-bottom: 10px;
+            z-index: 1;
+        }
+        .menu-builder-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .menu-item-form {
+            background: white;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-light);
+            position: relative;
+        }
+        .btn-remove-item {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: none;
+            border: none;
+            color: var(--color-danger);
+            cursor: pointer;
+        }
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="main-header" style="display:flex;">
+            <div class="header-inner">
+                <button class="header-icon-btn" onclick="window.location.href='index.html'"><i class="fas fa-arrow-right"></i></button>
+                <div class="header-title-logo">
+                    <i class="fas fa-store logo-icon"></i>
+                    <span>تأسيس حساب المطعم</span>
+                </div>
+                <div style="width: 40px;"></div>
+            </div>
+        </header>
+
+        <main class="app-scroll-content">
+            <div class="onboarding-container">
+                <!-- Step 1: Account Type -->
+                <div id="step1" class="step-panel active">
+                    <h2 style="text-align: center; color: var(--text-dark);">اختر نوع النشاط</h2>
+                    <p style="text-align: center; color: var(--text-muted); margin-bottom: 10px;">هل تدير مطعماً تجارياً أم مشروعاً منزلياً؟</p>
+                    
+                    <div class="card-choice" onclick="selectAccountType('commercial')">
+                        <i class="fas fa-utensils"></i>
+                        <h3>مطعم تجاري (محل)</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 5px;">مطعم رسمي، كافيه، أو مخبز تجاري مسجل</p>
+                    </div>
+                    
+                    <div class="card-choice" onclick="selectAccountType('home')">
+                        <i class="fas fa-home"></i>
+                        <h3>مطبخ منزلي (أكلات بيت)</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 5px;">أسر منتجة، طبخ منزلي، طلبيات وتواصي بيتية</p>
+                    </div>
+                </div>
+
+                <!-- Step 2: Basic Info -->
+                <div id="step2" class="step-panel">
+                    <h2>بيانات المطعم الأساسية</h2>
+                    <div class="form-group">
+                        <label>اسم المطعم / المطبخ المنزلي *</label>
+                        <input type="text" id="restName" placeholder="مثال: مطبخ أم علي للأكلات البيتية" required>
+                    </div>
+                    <div class="form-group">
+                        <label>رقم هاتف التواصل والطلبات *</label>
+                        <input type="tel" id="restPhone" placeholder="078xxxxxxxx" required>
+                    </div>
+                    <div class="form-group">
+                        <label>وصف مختصر للزبائن</label>
+                        <textarea id="restDesc" placeholder="مثال: متخصصون في الدولمة العراقية والقوزي البلدي على التمن البسمتي الفاخر..." rows="3"></textarea>
+                    </div>
+                </div>
+
+                <!-- Step 3: Location -->
+                <div id="step3" class="step-panel">
+                    <h2>موقع المطعم على الخريطة</h2>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);">ضع الدبوس بدقة على موقع مطبخك أو مطعمك لتسهيل وصول مندوب التوصيل.</p>
+                    <div id="onboardingMap"></div>
+                    <input type="hidden" id="restLat">
+                    <input type="hidden" id="restLng">
+                </div>
+
+                <!-- Step 4: Categories & Menu -->
+                <div id="step4" class="step-panel">
+                    <h2>قائمة الطعام والتصنيفات</h2>
+                    <div class="form-group">
+                        <label>اختر تصنيفات الأكلات التي تقدمها:</label>
+                        <div class="categories-grid" id="categoriesGrid">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                    
+                    <hr style="border:none; border-top: 1px solid var(--border-light); margin: 10px 0;">
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3>الوجبات والأطباق</h3>
+                        <button class="btn-primary-action" style="padding: 6px 12px; font-size: 0.85rem;" onclick="addMenuItemForm()"><i class="fas fa-plus"></i> إضافة وجبة</button>
+                    </div>
+                    
+                    <div class="menu-builder-list" id="menuBuilderList">
+                        <!-- Meal forms loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- Bottom Navigation Buttons -->
+                <div class="nav-buttons">
+                    <button class="btn-secondary-action" id="btnPrev" style="display:none; flex:1;" onclick="prevStep()">السابق</button>
+                    <button class="btn-primary-action" id="btnNext" style="flex:1;" onclick="nextStep()">التالي</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/onboarding.js"></script>
+</body>
+</html>

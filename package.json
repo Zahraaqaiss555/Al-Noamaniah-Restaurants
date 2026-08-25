@@ -1,0 +1,16 @@
+{
+  "name": "al-noamaniah-restaurants-backend",
+  "version": "1.0.0",
+  "description": "Backend server for Al-Noamaniah Restaurants App connected to MySQL Database",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "mysql2": "^3.24.2"
+  }
+}
